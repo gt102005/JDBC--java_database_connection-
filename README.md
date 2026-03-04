@@ -1,8 +1,6 @@
 <h1 align="center">☕ JDBC — Java Database Connectivity <img src="https://media.giphy.com/media/hvRJCLFzcasrR4ia7z/giphy.gif" width="30px"></h1>
 
-<h3 align="center">The Most Detailed Guide to Understanding & Implementing JDBC with MySQL / MariaDB in IntelliJ IDEA</h3>
 
----
 
 ## 📚 Table of Contents
 
@@ -16,16 +14,12 @@
 | 6 | [DriverManager — The Connection Gateway](#-drivermanager--the-connection-gateway) |
 | 7 | [Setting Up IntelliJ IDEA from Scratch](#-setting-up-intellij-idea-from-scratch) |
 | 8 | [Downloading & Adding the .jar Connector](#-downloading--adding-the-jar-connector) |
-| 9 | [Database & Table Setup in MySQL/MariaDB](#-database--table-setup-in-mysqlmariadb) |
-| 10 | [Establishing a JDBC Connection — Full Code](#-establishing-a-jdbc-connection--full-code) |
-| 11 | [CRUD Operations — Detailed with Code](#-crud-operations--detailed-with-code) |
-| 12 | [Transaction Management](#-transaction-management) |
-| 13 | [ResultSet Types & Scrollability](#-resultset-types--scrollability) |
-| 14 | [JDBC vs Hibernate — When to Use What](#-jdbc-vs-hibernate--when-to-use-what) |
-| 15 | [Project Structure](#-project-structure) |
-| 16 | [Common Errors & Fixes](#-common-errors--fixes) |
-| 17 | [JDBC Quick Reference Cheat Sheet](#-jdbc-quick-reference-cheat-sheet) |
-| 18 | [Connect with Me](#-connect-with-me) |
+| 9 | [Database & Table Setup in MariaDB](#-database--table-setup-in-mariadb) |
+| 10 | [The Connection Code — Explained Line by Line](#-the-connection-code--explained-line-by-line) |
+| 11 | [Project Structure](#-project-structure) |
+| 12 | [Common Errors & Fixes](#-common-errors--fixes) |
+| 13 | [JDBC Quick Reference Cheat Sheet](#-jdbc-quick-reference-cheat-sheet) |
+
 
 ---
 
@@ -48,13 +42,13 @@ JDBC lives in two packages:
 | `java.sql` | Core JDBC API — Connection, Statement, ResultSet, etc. |
 | `javax.sql` | Extended API — DataSource, connection pooling, distributed transactions |
 
-You do **not** need to install anything extra — both packages are bundled with every JDK installation.
+You do **not** need to install anything extra — both packages are bundled with every standard JDK installation.
 
 ### ✅ What Can JDBC Do?
 
-- 🔗 **Connect** a Java application to any relational database (MySQL, Oracle, PostgreSQL, MariaDB, SQLite, etc.)
+- 🔗 **Connect** a Java application to any relational database (MySQL, MariaDB, Oracle, PostgreSQL, SQLite, etc.)
 - 📤 **Send SQL commands** — SELECT, INSERT, UPDATE, DELETE, CREATE, DROP
-- 📥 **Retrieve and navigate** through query results row-by-row
+- 📥 **Retrieve and navigate** through query results row by row
 - 🔄 **Manage transactions** — commit, rollback, savepoints
 - 📞 **Call stored procedures** and database functions
 - 🔐 **Handle exceptions** gracefully using `SQLException`
@@ -67,7 +61,7 @@ You do **not** need to install anything extra — both packages are bundled with
 Before JDBC existed, connecting Java to a database was a **nightmare**:
 
 - Every database vendor had its own proprietary API
-- If you wrote code for Oracle, it **would not work** on MySQL
+- If you wrote code for Oracle, it **would not work** on MySQL or MariaDB
 - Switching databases meant **rewriting your entire data access layer**
 
 ### 🔧 How JDBC Solves This
@@ -76,10 +70,10 @@ JDBC introduces a **standard interface**. Your Java code talks to the JDBC API, 
 
 ```
 Without JDBC:   Java → [Oracle-specific code]   → Oracle DB
-                Java → [MySQL-specific code]    → MySQL DB    ← Need to rewrite!
+                Java → [MariaDB-specific code]  → MariaDB   ← Need to rewrite!
 
-With JDBC:      Java → JDBC API → Oracle Driver → Oracle DB
-                Java → JDBC API → MySQL Driver  → MySQL DB    ← Just swap the driver!
+With JDBC:      Java → JDBC API → Oracle Driver  → Oracle DB
+                Java → JDBC API → MariaDB Driver → MariaDB  ← Just swap the driver!
 ```
 
 This is the **Write Once, Run Anywhere** principle applied to database programming.
@@ -104,12 +98,12 @@ JDBC follows a **layered architecture**. Each layer has a specific responsibilit
 ║  creates Connection objects on request                   ║
 ╠══════════════════════════════════════════════════════════╣
 ║                 JDBC DRIVER LAYER                        ║
-║  The actual implementation — MySQL Connector/J,          ║
-║  MariaDB Connector/J, Oracle JDBC Driver, etc.           ║
+║  The actual implementation — MariaDB Connector/J,        ║
+║  MySQL Connector/J, Oracle JDBC Driver, etc.             ║
 ║  (distributed as .jar files)                             ║
 ╠══════════════════════════════════════════════════════════╣
 ║                    DATABASE                              ║
-║    MySQL  |  MariaDB  |  Oracle  |  PostgreSQL  |  etc.  ║
+║    MariaDB  |  MySQL  |  Oracle  |  PostgreSQL  |  etc.  ║
 ╚══════════════════════════════════════════════════════════╝
 ```
 
@@ -128,7 +122,6 @@ JDBC follows a **layered architecture**. Each layer has a specific responsibilit
 [Java Application] ←→ [App Server / Middleware] ←→ [JDBC Driver] ←→ [Database]
 ```
 - An **application server** (like Tomcat, JBoss, WildFly) sits in between
-- The Java client talks to the app server via HTTP or RMI
 - The app server handles database connections using **connection pooling**
 - Used in **enterprise web applications** (Spring Boot, Jakarta EE, etc.)
 - More scalable and secure
@@ -160,15 +153,6 @@ JDBC is built around **7 core interfaces and classes**. Understanding each one t
 | `getDrivers()` | Returns an enumeration of all registered drivers |
 | `setLoginTimeout(int seconds)` | Sets max wait time for a connection |
 
-```java
-// Basic usage
-Connection con = DriverManager.getConnection(
-    "jdbc:mysql://localhost:3306/testdb",
-    "root",
-    "password"
-);
-```
-
 > 🔑 In **JDBC 4.0+** (Java 6+), drivers are **auto-loaded** using the Service Provider mechanism. You no longer need `Class.forName()`. But it is still good practice to include it for clarity and backward compatibility.
 
 ---
@@ -194,26 +178,16 @@ The `Connection` interface represents an **open session** with the database. Eve
 | `rollback()` | Rolls back the current transaction |
 | `setAutoCommit(boolean)` | Enables/disables auto-commit mode |
 | `close()` | Closes the connection and releases resources |
-| `isClosed()` | Returns true if connection is closed |
-| `getMetaData()` | Returns DatabaseMetaData about the database |
+| `isClosed()` | Returns true if connection is already closed |
+| `getMetaData()` | Returns DatabaseMetaData about the connected database |
 
-```java
-Connection con = DriverManager.getConnection(url, user, password);
-
-System.out.println("Auto-commit: " + con.getAutoCommit()); // true by default
-System.out.println("DB Product : " + con.getMetaData().getDatabaseProductName());
-System.out.println("DB Version : " + con.getMetaData().getDatabaseProductVersion());
-
-con.close(); // Always close!
-```
-
-> ⚠️ **Important:** A `Connection` is NOT thread-safe. Do not share one `Connection` object across multiple threads. In production, use a **Connection Pool** (HikariCP, c3p0).
+> ⚠️ **Important:** A `Connection` is NOT thread-safe. Do not share one `Connection` object across multiple threads. In production apps, always use a **Connection Pool** (HikariCP, c3p0).
 
 ---
 
 ### 3. 📝 `Statement` — For Static SQL
 
-The `Statement` interface is used to execute **simple, static SQL queries** — queries that have no parameters and are known at compile time.
+The `Statement` interface is used to execute **simple, static SQL queries** — queries that have no parameters and are fully known at the time of writing.
 
 **When to use:** Quick queries, one-time operations, or DDL statements (CREATE, DROP, ALTER).
 
@@ -223,35 +197,10 @@ The `Statement` interface is used to execute **simple, static SQL queries** — 
 |--------|---------|---------|
 | `executeQuery(sql)` | `ResultSet` | SELECT queries |
 | `executeUpdate(sql)` | `int` (rows affected) | INSERT, UPDATE, DELETE, DDL |
-| `execute(sql)` | `boolean` | Any SQL — true if first result is ResultSet |
-| `addBatch(sql)` | void | Add SQL to batch |
+| `execute(sql)` | `boolean` | Any SQL — true if result is a ResultSet |
+| `addBatch(sql)` | void | Add SQL to a batch queue |
 | `executeBatch()` | `int[]` | Execute all batched SQL at once |
 | `close()` | void | Release Statement resources |
-
-```java
-Statement stmt = con.createStatement();
-
-// DDL — Create a table
-stmt.executeUpdate("CREATE TABLE IF NOT EXISTS students (" +
-    "id INT PRIMARY KEY, " +
-    "name VARCHAR(50), " +
-    "marks INT, " +
-    "grade CHAR(1)" +
-")");
-System.out.println("Table created!");
-
-// DML — Insert a row
-int rows = stmt.executeUpdate("INSERT INTO students VALUES(1, 'Gopal', 95, 'A')");
-System.out.println(rows + " row(s) inserted.");
-
-// DQL — Select rows
-ResultSet rs = stmt.executeQuery("SELECT * FROM students");
-while (rs.next()) {
-    System.out.println(rs.getInt("id") + " | " + rs.getString("name"));
-}
-
-stmt.close();
-```
 
 > ❌ **Warning:** Never use `Statement` with user-provided input! It is **vulnerable to SQL Injection**. Always use `PreparedStatement` when parameters are involved.
 
@@ -276,50 +225,9 @@ stmt.close();
 | `setDouble(index, value)` | Set a double parameter |
 | `setDate(index, value)` | Set a java.sql.Date parameter |
 | `setNull(index, sqlType)` | Set a NULL parameter |
-| `setObject(index, value)` | Set any Java object as parameter |
 | `executeQuery()` | Execute SELECT — returns ResultSet |
 | `executeUpdate()` | Execute INSERT/UPDATE/DELETE — returns row count |
-| `addBatch()` | Add current parameters to batch |
 | `clearParameters()` | Reset all parameter values |
-
-```java
-// ✅ SAFE — Using PreparedStatement
-String insertSQL = "INSERT INTO students(id, name, marks, grade) VALUES(?, ?, ?, ?)";
-PreparedStatement ps = con.prepareStatement(insertSQL);
-
-// Insert first student
-ps.setInt(1, 2);
-ps.setString(2, "Rahul");
-ps.setInt(3, 87);
-ps.setString(4, "B");
-ps.executeUpdate();
-
-// Reuse the same PreparedStatement for second student (efficient!)
-ps.setInt(1, 3);
-ps.setString(2, "Priya");
-ps.setInt(3, 91);
-ps.setString(4, "A");
-ps.executeUpdate();
-
-System.out.println("Both students inserted successfully!");
-ps.close();
-```
-
-**SQL Injection Demo — Why PreparedStatement Matters:**
-```java
-// ❌ DANGEROUS — Using Statement with user input
-String userInput = "' OR '1'='1"; // Malicious input
-String sql = "SELECT * FROM users WHERE username = '" + userInput + "'";
-// This becomes: SELECT * FROM users WHERE username = '' OR '1'='1'
-// Returns ALL users! Security breach!
-
-// ✅ SAFE — PreparedStatement escapes input automatically
-PreparedStatement ps = con.prepareStatement(
-    "SELECT * FROM users WHERE username = ?"
-);
-ps.setString(1, userInput); // Treated as literal string, not SQL code
-// Safe! Returns no rows (no user with that weird name)
-```
 
 ---
 
@@ -332,51 +240,17 @@ ps.setString(1, userInput); // Treated as literal string, not SQL code
 - When you need to call a procedure that returns multiple result sets
 - For performance-critical operations handled at the DB level
 
-```sql
--- First, create a stored procedure in MySQL
-DELIMITER //
-CREATE PROCEDURE getStudentsByGrade(IN grade_input CHAR(1))
-BEGIN
-    SELECT * FROM students WHERE grade = grade_input;
-END //
-DELIMITER ;
+**Syntax to call a stored procedure:**
+```
+{call procedure_name(param1, param2, ...)}
 ```
 
-```java
-// Call the stored procedure from Java
-CallableStatement cs = con.prepareCall("{call getStudentsByGrade(?)}");
-cs.setString(1, "A");
-
-ResultSet rs = cs.executeQuery();
-System.out.println("Grade A Students:");
-while (rs.next()) {
-    System.out.println(rs.getString("name") + " — " + rs.getInt("marks"));
-}
-
-rs.close();
-cs.close();
-```
-
-**Stored Procedure with OUT parameter:**
-```sql
--- Procedure that returns a value via OUT parameter
-DELIMITER //
-CREATE PROCEDURE getStudentCount(OUT total INT)
-BEGIN
-    SELECT COUNT(*) INTO total FROM students;
-END //
-DELIMITER ;
-```
-
-```java
-CallableStatement cs = con.prepareCall("{call getStudentCount(?)}");
-cs.registerOutParameter(1, java.sql.Types.INTEGER); // Register OUT param
-cs.execute();
-
-int count = cs.getInt(1); // Retrieve OUT parameter value
-System.out.println("Total students: " + count);
-cs.close();
-```
+**Types of parameters:**
+| Parameter Type | Direction | Description |
+|---------------|-----------|-------------|
+| `IN` | Input | Value passed from Java to the DB procedure |
+| `OUT` | Output | Value returned from DB procedure to Java |
+| `IN OUT` | Both | Value passed in and also returned |
 
 ---
 
@@ -398,7 +272,6 @@ cs.close();
 | `getDouble(columnName or index)` | double value |
 | `getBoolean(columnName or index)` | boolean value |
 | `getDate(columnName or index)` | java.sql.Date value |
-| `getTimestamp(columnName or index)` | java.sql.Timestamp value |
 | `getObject(columnName or index)` | Any Java Object |
 | `wasNull()` | true if the last column read was SQL NULL |
 
@@ -410,50 +283,22 @@ cs.close();
 | `previous()` | Move to previous row |
 | `first()` | Move to first row |
 | `last()` | Move to last row |
-| `absolute(n)` | Move to nth row |
-| `relative(n)` | Move n rows from current position |
-| `beforeFirst()` | Move before first row |
-| `afterLast()` | Move after last row |
+| `absolute(n)` | Move to the nth row |
+| `beforeFirst()` | Move before the first row (reset) |
 
-```java
-Statement stmt = con.createStatement();
-ResultSet rs = stmt.executeQuery("SELECT * FROM students ORDER BY marks DESC");
+**ResultSet Types:**
 
-System.out.println("╔════╦══════════╦═══════╦═══════╗");
-System.out.println("║ ID ║ Name     ║ Marks ║ Grade ║");
-System.out.println("╠════╬══════════╬═══════╬═══════╣");
-
-while (rs.next()) {
-    System.out.printf("║ %-2d ║ %-8s ║  %-4d ║   %-3s ║%n",
-        rs.getInt("id"),
-        rs.getString("name"),
-        rs.getInt("marks"),
-        rs.getString("grade")
-    );
-}
-
-System.out.println("╚════╩══════════╩═══════╩═══════╝");
-rs.close();
-stmt.close();
-```
-
-**Checking ResultSet Metadata:**
-```java
-ResultSetMetaData meta = rs.getMetaData();
-int colCount = meta.getColumnCount();
-System.out.println("Number of columns: " + colCount);
-
-for (int i = 1; i <= colCount; i++) {
-    System.out.println("Column " + i + ": " +
-        meta.getColumnName(i) + " (" + meta.getColumnTypeName(i) + ")");
-}
-```
+| Constant | Description |
+|----------|-------------|
+| `TYPE_FORWARD_ONLY` | Default. Can only move forward with `next()` |
+| `TYPE_SCROLL_INSENSITIVE` | Can scroll in any direction. Does NOT reflect DB changes made after the ResultSet was opened |
+| `TYPE_SCROLL_SENSITIVE` | Can scroll in any direction. DOES reflect live DB changes |
 
 ---
 
 ### 7. 🔐 `SQLException` — Database Error Handling
 
-`SQLException` is the main **checked exception** in JDBC. It is thrown by almost every JDBC method and contains detailed information about what went wrong.
+`SQLException` is the main **checked exception** in JDBC. It is thrown by almost every JDBC method and contains detailed information about what went wrong at the database level.
 
 **Key Methods:**
 
@@ -461,38 +306,18 @@ for (int i = 1; i <= colCount; i++) {
 |--------|---------|
 | `getMessage()` | Human-readable error message |
 | `getSQLState()` | 5-character SQL state code (XOPEN standard) |
-| `getErrorCode()` | Vendor-specific error code |
-| `getNextException()` | Next exception in the chain |
-
-```java
-try {
-    Connection con = DriverManager.getConnection(url, user, pass);
-    Statement stmt = con.createStatement();
-    ResultSet rs = stmt.executeQuery("SELECT * FROM non_existent_table");
-
-} catch (SQLException e) {
-    System.out.println("Error Message : " + e.getMessage());
-    System.out.println("SQL State     : " + e.getSQLState());
-    System.out.println("Error Code    : " + e.getErrorCode());
-
-    // Check for chained exceptions
-    SQLException next = e.getNextException();
-    while (next != null) {
-        System.out.println("  → Chained: " + next.getMessage());
-        next = next.getNextException();
-    }
-}
-```
+| `getErrorCode()` | Vendor-specific integer error code |
+| `getNextException()` | Next chained exception in the chain |
 
 **Common SQL State Codes:**
 
 | SQL State | Meaning |
 |-----------|---------|
-| `08001` | Cannot connect to database server |
-| `08006` | Connection failure during transaction |
-| `28000` | Invalid authorization / wrong password |
+| `08001` | Cannot connect to the database server |
+| `08006` | Connection failure during an active transaction |
+| `28000` | Invalid authorization — wrong username or password |
 | `42000` | Syntax error or access rule violation |
-| `42S02` | Table not found |
+| `42S02` | Table or view not found |
 | `23000` | Integrity constraint violation (duplicate key, etc.) |
 
 ---
@@ -501,7 +326,7 @@ try {
 
 A **JDBC Driver** is the concrete implementation that does the actual work of communicating with the database. It translates the abstract JDBC API calls into database-specific network protocol messages.
 
-Without a driver, JDBC is just an interface — useless. The driver is what makes the connection real.
+Without a driver, JDBC is just an interface — useless on its own. The driver is what makes the connection real.
 
 ---
 
@@ -532,10 +357,11 @@ Without a driver, JDBC is just an interface — useless. The driver is what make
 
 **How it works:**
 - Uses **ODBC (Open Database Connectivity)** — Microsoft's older standard for database access
-- Java calls → translated to ODBC calls → translated to database-specific calls
-- Requires the **ODBC driver** to be installed and configured on the client machine's operating system
+- Java calls get translated to ODBC calls, which then get translated to database-specific calls
+- Requires the **ODBC driver** to be installed and configured on the client machine's OS
 
 **Characteristics:**
+
 | Feature | Detail |
 |---------|--------|
 | Pure Java? | ❌ No — depends on native ODBC driver |
@@ -544,9 +370,7 @@ Without a driver, JDBC is just an interface — useless. The driver is what make
 | Setup | Easy (was bundled with early JDKs) |
 | Status | **Deprecated since Java 8 — removed in Java 9** |
 
-**When it was used:** Legacy enterprise systems in the early 2000s that already had ODBC infrastructure.
-
-> ⛔ Do NOT use Type 1 in any modern project. It's completely obsolete.
+> ⛔ Do NOT use Type 1 in any modern project. It is completely obsolete.
 
 ---
 
@@ -563,10 +387,10 @@ Without a driver, JDBC is just an interface — useless. The driver is what make
 └────────┬────────┘
          │  JNI (Java Native Interface)
          ▼
-┌─────────────────────────────┐
-│  Database Vendor Native Lib │  ← C/C++ native library (e.g., Oracle OCI)
-│  (must be installed locally)│
-└────────────┬────────────────┘
+┌──────────────────────────────┐
+│  DB Vendor Native Library    │  ← C/C++ native library (e.g., Oracle OCI)
+│  (must be installed locally) │
+└────────┬─────────────────────┘
          │
          ▼
 ┌─────────────────┐
@@ -580,6 +404,7 @@ Without a driver, JDBC is just an interface — useless. The driver is what make
 - The **native library** must be installed on every client machine
 
 **Characteristics:**
+
 | Feature | Detail |
 |---------|--------|
 | Pure Java? | ❌ No — partially native |
@@ -588,11 +413,7 @@ Without a driver, JDBC is just an interface — useless. The driver is what make
 | Setup | Complex — native libraries must be installed |
 | Status | Rarely used today |
 
-**Examples:**
-- **Oracle OCI (Oracle Call Interface) Driver**
-- **DB2 Native Driver** by IBM
-
-**When to use:** Legacy Oracle enterprise systems where the native OCI driver gives performance benefits, and the client machines are all the same platform.
+**Examples:** Oracle OCI Driver, IBM DB2 Native Driver
 
 ---
 
@@ -605,15 +426,14 @@ Without a driver, JDBC is just an interface — useless. The driver is what make
          │  Java
          ▼
 ┌─────────────────────┐
-│  Type 3 JDBC Driver │  ← 100% Pure Java
-│  (on client)        │
+│  Type 3 JDBC Driver │  ← 100% Pure Java (on client)
 └────────┬────────────┘
-         │  Network Protocol (HTTP, IIOP, etc.)
+         │  Generic Network Protocol (HTTP, IIOP, etc.)
          ▼
-┌────────────────────────────┐
-│  Middleware / App Server   │  ← Translates to DB-specific protocol
-│  (on separate server)      │
-└────────┬───────────────────┘
+┌───────────────────────────┐
+│  Middleware / App Server  │  ← Translates to DB-specific protocol
+│  (on a separate server)   │
+└────────┬──────────────────┘
          │  Database-specific protocol
          ▼
 ┌─────────────────┐
@@ -622,22 +442,21 @@ Without a driver, JDBC is just an interface — useless. The driver is what make
 ```
 
 **How it works:**
-- The client-side driver is **100% Pure Java** — no native libraries on the client
+- The client-side driver is **100% Pure Java** — no native libraries required on the client
 - It communicates with a **middleware server** using a generic network protocol
 - The **middleware server** then translates those calls into database-specific protocol
-- The middleware can connect to **multiple different databases** simultaneously
+- One middleware can talk to **multiple different databases** simultaneously
 
 **Characteristics:**
+
 | Feature | Detail |
 |---------|--------|
 | Pure Java? | ✅ Yes (client side) |
 | Platform Independent? | ✅ Yes |
-| Speed | 🚶 Medium — extra hop through middleware |
+| Speed | 🚶 Medium — extra network hop through middleware |
 | Flexibility | ✅ High — one driver can target multiple databases |
 | Setup | Complex — requires middleware server |
 | Status | Rarely used in modern apps |
-
-**When to use:** Large enterprise systems that need to connect to **multiple different databases** through a centralized connection manager, or internet-facing applications where client-side native code is not feasible.
 
 ---
 
@@ -649,34 +468,32 @@ Without a driver, JDBC is just an interface — useless. The driver is what make
 └────────┬────────┘
          │  Java
          ▼
-┌─────────────────────────┐
-│  Type 4 JDBC Driver     │  ← 100% Pure Java (.jar file)
-│  MySQL Connector/J      │
-│  MariaDB Connector/J    │
-└────────┬────────────────┘
-         │  Database-native protocol DIRECTLY over TCP/IP
-         │  (e.g., MySQL Protocol on port 3306)
+┌──────────────────────────┐
+│  Type 4 JDBC Driver      │  ← 100% Pure Java (.jar file)
+│  MariaDB Connector/J     │
+└────────┬─────────────────┘
+         │  MariaDB native protocol DIRECTLY over TCP/IP (port 3306)
          ▼
 ┌─────────────────┐
-│    Database     │  ← MySQL / MariaDB / PostgreSQL / Oracle
+│    MariaDB      │
 └─────────────────┘
 ```
 
 **How it works:**
-- The driver is written in **100% Pure Java** — just a `.jar` file
+- The driver is written in **100% Pure Java** — packaged as a single `.jar` file
 - It communicates **directly** with the database using the database's **own native network protocol** over TCP/IP
-- No intermediary layers, no native code, no middleware
-- This is the driver you **download from MySQL's website** as `mysql-connector-j-x.x.x.jar`
+- No intermediate layers, no native code, no middleware needed at all
+- This is exactly the `mariadb-java-client-x.x.x.jar` file you download and add to your project
 
 **Characteristics:**
+
 | Feature | Detail |
 |---------|--------|
 | Pure Java? | ✅ Yes — 100% Pure Java |
-| Platform Independent? | ✅ Yes — runs on any OS with JVM |
-| Speed | 🚀 Fastest — direct DB protocol communication |
-| Setup | Very easy — just add the `.jar` to classpath |
+| Platform Independent? | ✅ Yes — runs on any OS with a JVM |
+| Speed | 🚀 Fastest — direct native protocol communication |
+| Setup | Very easy — just add the `.jar` to your classpath |
 | Status | **Standard for all modern Java applications** |
-| Examples | MySQL Connector/J, MariaDB Connector/J, PostgreSQL JDBC Driver |
 
 ---
 
@@ -697,7 +514,7 @@ Without a driver, JDBC is just an interface — useless. The driver is what make
 
 ## 🎯 DriverManager — The Connection Gateway
 
-`DriverManager` is the **central manager** of the entire JDBC connection process. It is a **final class** with only **static methods** — you never instantiate it.
+`DriverManager` is the **central manager** of the entire JDBC connection process. It is a **final class** with only **static methods** — you never instantiate it directly.
 
 ### 🔄 Internal Working — Step by Step
 
@@ -709,10 +526,10 @@ Step 2: DriverManager iterates over all registered drivers
 Step 3: For each driver, it calls driver.connect(url, props)
 
 Step 4: The driver checks if it understands the URL prefix
-        → MySQL driver checks for "jdbc:mysql://"
-        → If URL matches, it opens a TCP connection to MySQL server on port 3306
+        → MariaDB driver checks for "jdbc:mariadb://"
+        → If URL matches, opens a TCP connection to MariaDB on port 3306
         → Sends authentication credentials
-        → MySQL server validates and grants access
+        → MariaDB server validates and grants access
 
 Step 5: Driver returns a Connection object to DriverManager
 
@@ -727,71 +544,40 @@ The connection URL is how JDBC knows **which database**, on **which server**, on
 
 **Full URL Structure:**
 ```
-jdbc : <subprotocol> :// <host> : <port> / <database> ? <properties>
-  ↑          ↑             ↑         ↑          ↑              ↑
-JDBC    driver type      server    port      DB name     optional config
-prefix   identifier      name                           key=value pairs
+jdbc : <subprotocol> :// <host> : <port> / <database>
+  ↑          ↑             ↑         ↑          ↑
+JDBC    driver type      server    port      DB name
+prefix   identifier      name
 ```
 
-**MySQL Examples:**
-```java
-// Minimal — local MySQL on default port
-String url = "jdbc:mysql://localhost:3306/testdb";
-
-// With MySQL 8+ recommended options
-String url = "jdbc:mysql://localhost:3306/testdb" +
-             "?useSSL=false" +
-             "&allowPublicKeyRetrieval=true" +
-             "&serverTimezone=UTC" +
-             "&characterEncoding=UTF-8" +
-             "&autoReconnect=true";
-
-// Remote server
-String url = "jdbc:mysql://192.168.1.100:3306/production_db?useSSL=true";
+**MariaDB Example (as used in this project):**
 ```
-
-**MariaDB Example:**
-```java
-String url = "jdbc:mariadb://localhost:3306/testdb?useSSL=false";
+jdbc:mariadb://localhost:3306/jdbc
+     ↑              ↑     ↑    ↑
+  mariadb        server  port  database
+  driver         host          name
 ```
 
 ### ⚙️ Driver Registration — Old vs New
 
 **Old Way (JDBC 3.x — before Java 6):**
 ```java
-// Manually load and register the driver class
-// Class.forName() triggers the static initializer in the driver class
-// which calls DriverManager.registerDriver(new Driver())
-Class.forName("com.mysql.cj.jdbc.Driver");  // MySQL 8+
-// or
-Class.forName("com.mysql.jdbc.Driver");     // MySQL 5.x (old)
-// or
-Class.forName("org.mariadb.jdbc.Driver");   // MariaDB
+// Manually load and register the driver class.
+// Class.forName() triggers the static initializer in the driver,
+// which internally calls DriverManager.registerDriver(new Driver())
+Class.forName("org.mariadb.jdbc.Driver");
 ```
 
-**New Way (JDBC 4.0+ — Java 6+, recommended):**
+**New Way (JDBC 4.0+ — Java 6 and above):**
 ```java
-// Drivers are automatically discovered and registered!
+// Drivers are automatically discovered using the Service Provider mechanism.
 // The .jar file contains META-INF/services/java.sql.Driver
-// which lists the driver class name
-// DriverManager reads this file and loads the driver automatically
-// You just call getConnection() directly!
+// listing the driver class. DriverManager reads this and loads it automatically.
+// You can skip Class.forName() entirely!
 Connection con = DriverManager.getConnection(url, user, password);
 ```
 
-### 🕒 Setting Connection Timeout
-
-```java
-// Set max wait time for getting a connection (in seconds)
-DriverManager.setLoginTimeout(10); // Wait max 10 seconds
-
-try {
-    Connection con = DriverManager.getConnection(url, user, pass);
-} catch (SQLException e) {
-    // If connection not established in 10 seconds, exception is thrown
-    System.out.println("Connection timed out!");
-}
-```
+> 🔑 In this project, `Class.forName("org.mariadb.jdbc.Driver")` is used explicitly — this is the **old but clear and explicit** style. It still works perfectly in modern Java and makes the code easy to understand.
 
 ---
 
@@ -803,86 +589,62 @@ IntelliJ IDEA is the most powerful Java IDE. Here is a complete setup guide from
 
 1. Go to: [https://www.jetbrains.com/idea/download/](https://www.jetbrains.com/idea/download/)
 2. Choose **Community Edition** (free and open source) — more than enough for JDBC
-3. Download the installer for your OS:
-   - **Windows**: `.exe` installer
-   - **macOS**: `.dmg` disk image
-   - **Linux**: `.tar.gz` archive or via JetBrains Toolbox
+3. Download the installer for your OS (Windows `.exe` / macOS `.dmg` / Linux `.tar.gz`)
 4. Run the installer and follow the prompts
 5. When asked, select **"Add to PATH"** (Windows) and create a desktop shortcut
 
 ### Step 2 — Install / Verify JDK
 
-JDBC requires **Java 11 or above** (Java 17 LTS is recommended).
-
 1. In IntelliJ, go to **File → Project Structure → SDKs**
 2. If no JDK is listed, click **`+`** → **"Download JDK"**
-3. Select **Version 17** → **Vendor: Eclipse Temurin (AdoptOpenJDK)** → **Download**
+3. Select **Version 17** → **Vendor: Eclipse Temurin** → **Download**
 4. Click **Apply**
-
-Or install JDK separately from: [https://adoptium.net/](https://adoptium.net/)
 
 ### Step 3 — Create a New Java Project
 
-1. Launch IntelliJ IDEA
-2. Click **"New Project"** on the Welcome screen
-3. In the left panel, select **"Java"**
-4. Configure:
+1. Launch IntelliJ IDEA → Click **"New Project"**
+2. In the left panel, select **"Java"**
+3. Configure:
    ```
    Name     : db_conn
-   Location : C:\Users\YourName\Projects\db_conn   (or any path)
-   JDK      : 17 (or whichever you installed)
+   Location : C:\Users\YourName\Projects\db_conn
+   JDK      : 17
    ```
-5. **Uncheck** "Add sample code" (we'll write our own)
-6. Click **"Create"** ✅
+4. Uncheck **"Add sample code"**
+5. Click **"Create"** ✅
 
 ### Step 4 — Understand the Project Layout
 
-After creation, your project looks like this:
 ```
-db_conn/                     ← Project root
-├── .idea/                   ← IntelliJ config (don't touch)
-│   ├── misc.xml
-│   ├── modules.xml
-│   └── workspace.xml
-├── src/                     ← All Java source files go here
-│   └── (empty for now)
-└── db_conn.iml              ← IntelliJ module file
+db_conn/
+├── .idea/          ← IntelliJ config files (auto-generated, don't touch)
+├── src/            ← All your Java source files go here
+│   └── Main.java
+└── db_conn.iml     ← IntelliJ module file
 ```
-
-### Step 5 — Create Source Files
-
-1. Right-click `src/` folder → **New → Java Class**
-2. Name it `Main` → press Enter
-3. IntelliJ creates `src/Main.java` with a basic class structure
 
 ---
 
 ## 📦 Downloading & Adding the .jar Connector
 
-### Step 1 — Download MySQL Connector/J
+### Step 1 — Download MariaDB Connector/J
 
-1. Visit: [https://dev.mysql.com/downloads/connector/j/](https://dev.mysql.com/downloads/connector/j/)
-2. Under **"Select Operating System"**, choose **"Platform Independent"**
-3. Download the **ZIP Archive** (e.g., `mysql-connector-j-8.3.0.zip`)
-4. Extract the ZIP — you'll find `mysql-connector-j-8.3.0.jar` inside
-5. This `.jar` file is your **Type 4 JDBC driver**
-
-> 🐬 **For MariaDB**, download from: [https://mariadb.com/downloads/connectors/](https://mariadb.com/downloads/connectors/)
-> Get `mariadb-java-client-3.x.x.jar`
+1. Visit: [https://mariadb.com/downloads/connectors/](https://mariadb.com/downloads/connectors/)
+2. Select **Connector/J** (the Java connector)
+3. Download the `.jar` file (e.g., `mariadb-java-client-3.x.x.jar`)
+4. This `.jar` is your **Type 4 Pure Java JDBC driver**
 
 ### Step 2 — Create a `lib` Folder in Your Project
 
-1. In IntelliJ's Project Explorer, right-click the **project root** (`db_conn`)
-2. Select **New → Directory**
-3. Name it `lib` → press Enter
-4. Copy/paste (or drag & drop) the downloaded `.jar` file into the `lib/` folder
+1. In IntelliJ's Project Explorer, right-click the **project root**
+2. Select **New → Directory** → name it `lib`
+3. Copy/paste the downloaded `.jar` file into the `lib/` folder
 
-Your project structure now:
 ```
 db_conn/
 ├── .idea/
 ├── lib/
-│   └── mysql-connector-j-8.3.0.jar   ← Connector placed here ✅
+│   └── mariadb-java-client-3.x.x.jar   ← Placed here ✅
 ├── src/
 │   └── Main.java
 └── db_conn.iml
@@ -890,760 +652,198 @@ db_conn/
 
 ### Step 3 — Add the .jar to the Project Classpath
 
-**Method A — Via Project Structure (Recommended & Permanent)**
+**Method A — Via Project Structure (Recommended)**
 
-1. Press `Ctrl + Alt + Shift + S` (or **File → Project Structure**)
-2. In the left panel, click **"Modules"**
-3. Go to the **"Dependencies"** tab on the right
-4. Click the **`+`** button (bottom of the list) → Select **"JARs or Directories..."**
-5. Navigate to `your-project/lib/` → select `mysql-connector-j-8.3.0.jar`
-6. Click **OK** → make sure it's checked (✅) in the list
-7. Click **Apply** → **OK**
+1. Press `Ctrl + Alt + Shift + S` → opens **Project Structure**
+2. Click **"Modules"** → go to **"Dependencies"** tab
+3. Click **`+`** → **"JARs or Directories..."**
+4. Navigate to `lib/` → select the `.jar` → click **OK**
+5. Make sure it is checked ✅ → click **Apply** → **OK**
 
 **Method B — Right-Click Shortcut**
 
-1. In the Project Explorer, expand `lib/`
-2. Right-click `mysql-connector-j-8.3.0.jar`
-3. Select **"Add as Library..."**
-4. Leave settings as default → click **OK**
+1. Expand `lib/` in Project Explorer
+2. Right-click the `.jar` file
+3. Select **"Add as Library..."** → click **OK**
 
 ### Step 4 — Verify the Connector Was Added
 
-In the Project Explorer, expand **"External Libraries"** at the bottom:
+In Project Explorer, expand **"External Libraries"** at the bottom:
 ```
 External Libraries
-└── mysql-connector-j-8.3.0     ← This should appear ✅
-    └── mysql-connector-j-8.3.0.jar
+└── mariadb-java-client-3.x.x   ✅  ← Should appear here
 ```
-
-If you see the connector here, you are ready to write JDBC code! 🎉
 
 ---
 
-## 🗄️ Database & Table Setup in MySQL/MariaDB
+## 🗄️ Database & Table Setup in MariaDB
 
-Before connecting from Java, you need to have MySQL/MariaDB running and a database ready.
+Before running the Java code, you need MariaDB running and the `jdbc` database with a `student` table ready.
 
-### Start MySQL/MariaDB Service
+### Start MariaDB Service
 
 **Windows:**
 ```cmd
-:: Via Services (search "Services" in Start Menu → find MySQL → Start)
-:: Or via Command Prompt as Administrator:
-net start mysql
+net start mariadb
 ```
 
 **Linux:**
 ```bash
-sudo systemctl start mysql    # MySQL
-sudo systemctl start mariadb  # MariaDB
-
-sudo systemctl enable mysql   # Auto-start on boot
+sudo systemctl start mariadb
 ```
 
-**macOS (via Homebrew):**
-```bash
-brew services start mysql
-```
-
-### Open MySQL Shell & Create Everything
+### Create Database, User & Table
 
 ```sql
--- Open MySQL command line and log in
+-- Log in as root
 mysql -u root -p
--- Enter your password when prompted
 
--- ─────────────────────────────────────────────────────
--- Step 1: Create a new database
--- ─────────────────────────────────────────────────────
-CREATE DATABASE IF NOT EXISTS testdb;
-USE testdb;
+-- Create the database used in this project
+CREATE DATABASE IF NOT EXISTS jdbc;
+USE jdbc;
 
--- ─────────────────────────────────────────────────────
--- Step 2: Create a students table
--- ─────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS students (
-    id       INT          PRIMARY KEY AUTO_INCREMENT,
-    name     VARCHAR(50)  NOT NULL,
-    marks    INT          NOT NULL,
-    grade    CHAR(1)      NOT NULL,
-    city     VARCHAR(30),
-    enrolled DATE         DEFAULT (CURRENT_DATE)
+-- Create a dedicated user (matching the credentials in the code)
+CREATE USER IF NOT EXISTS 'devuser'@'localhost' IDENTIFIED BY 'devuser';
+GRANT ALL PRIVILEGES ON jdbc.* TO 'devuser'@'localhost';
+FLUSH PRIVILEGES;
+
+-- Create the student table
+CREATE TABLE IF NOT EXISTS student (
+    id   INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL
 );
 
--- ─────────────────────────────────────────────────────
--- Step 3: Insert sample data
--- ─────────────────────────────────────────────────────
-INSERT INTO students (name, marks, grade, city) VALUES
-('Gopal Tayade', 95, 'A', 'Pune'),
-('Rahul Sharma', 87, 'B', 'Mumbai'),
-('Priya Desai',  91, 'A', 'Nashik'),
-('Anjali Patil', 78, 'C', 'Pune'),
-('Rohan Gupta',  83, 'B', 'Nagpur');
+-- Insert sample data
+INSERT INTO student (name) VALUES
+('Gopal Tayade'),
+('Rahul Sharma'),
+('Priya Desai');
 
--- ─────────────────────────────────────────────────────
--- Step 4: Verify the data
--- ─────────────────────────────────────────────────────
-SELECT * FROM students;
+-- Verify
+SELECT * FROM student;
 ```
 
 Expected output:
 ```
-+----+--------------+-------+-------+---------+------------+
-| id | name         | marks | grade | city    | enrolled   |
-+----+--------------+-------+-------+---------+------------+
-|  1 | Gopal Tayade |    95 | A     | Pune    | 2025-01-01 |
-|  2 | Rahul Sharma |    87 | B     | Mumbai  | 2025-01-01 |
-|  3 | Priya Desai  |    91 | A     | Nashik  | 2025-01-01 |
-|  4 | Anjali Patil |    78 | C     | Pune    | 2025-01-01 |
-|  5 | Rohan Gupta  |    83 | B     | Nagpur  | 2025-01-01 |
-+----+--------------+-------+-------+---------+------------+
++----+--------------+
+| id | name         |
++----+--------------+
+|  1 | Gopal Tayade |
+|  2 | Rahul Sharma |
+|  3 | Priya Desai  |
++----+--------------+
 ```
 
 ---
 
-## 🔗 Establishing a JDBC Connection — Full Code
+## 💻 The Connection Code — Explained Line by Line
 
-Now let's write the complete, production-grade JDBC connection code:
-
-### DBConfig.java — Centralize Your Credentials
+This is the actual code written in this project. It demonstrates **loading the MariaDB driver**, **establishing a connection**, **executing a SELECT query**, and **printing results** from the `student` table.
 
 ```java
-// src/DBConfig.java
-// Best practice: keep all DB config in one place
+/* Program to demonstrate the database connection and the fetching of the data from the database */
+import java.sql.*;
 
-public class DBConfig {
+public class Main {
+    public static void main(String[] args) throws ClassNotFoundException {
 
-    // ── MySQL Settings ──────────────────────────────────────
-    public static final String HOST     = "localhost";
-    public static final String PORT     = "3306";
-    public static final String DATABASE = "testdb";
-    public static final String USER     = "root";
-    public static final String PASSWORD = "yourpassword";   // ← Change this
-
-    // ── Full Connection URL (MySQL 8+ with recommended options) ──
-    public static final String URL =
-        "jdbc:mysql://" + HOST + ":" + PORT + "/" + DATABASE +
-        "?useSSL=false" +
-        "&allowPublicKeyRetrieval=true" +
-        "&serverTimezone=UTC" +
-        "&characterEncoding=UTF-8" +
-        "&autoReconnect=true";
-
-    // ── For MariaDB, use this URL instead ───────────────────
-    // public static final String URL =
-    //     "jdbc:mariadb://" + HOST + ":" + PORT + "/" + DATABASE +
-    //     "?useSSL=false&characterEncoding=UTF-8";
-}
-```
-
-### DBConnection.java — Connection Manager
-
-```java
-// src/DBConnection.java
-
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-
-public class DBConnection {
-
-    public static void main(String[] args) {
-
-        Connection con = null;
-
+        // ── Step 1: Load the MariaDB JDBC Driver ──────────────────────────────
+        // The driver class name for MariaDB Connector/J
+        // Class.forName() loads this class into memory, which triggers its
+        // static initializer block — that block registers the driver with DriverManager
+        String driver_load = "org.mariadb.jdbc.Driver";
         try {
-            // ── Step 1: Load the Driver ────────────────────────────────
-            // For JDBC 4.0+ (Java 6+), this line is optional
-            // The driver is auto-discovered from the .jar's META-INF/services/
-            // But it's good practice to include it for clarity
-            Class.forName("com.mysql.cj.jdbc.Driver");
-            System.out.println("✅ Driver loaded successfully.");
-
-            // ── Step 2: Request a Connection from DriverManager ────────
-            System.out.println("⏳ Connecting to database...");
-            con = DriverManager.getConnection(
-                DBConfig.URL,
-                DBConfig.USER,
-                DBConfig.PASSWORD
-            );
-            System.out.println("✅ Connection established successfully!\n");
-
-            // ── Step 3: Print Database Info using Metadata ─────────────
-            DatabaseMetaData meta = con.getMetaData();
-            System.out.println("════════ DATABASE INFO ════════");
-            System.out.println("Product Name    : " + meta.getDatabaseProductName());
-            System.out.println("Product Version : " + meta.getDatabaseProductVersion());
-            System.out.println("Driver Name     : " + meta.getDriverName());
-            System.out.println("Driver Version  : " + meta.getDriverVersion());
-            System.out.println("JDBC URL        : " + meta.getURL());
-            System.out.println("Username        : " + meta.getUserName());
-            System.out.println("Auto-commit     : " + con.getAutoCommit());
-            System.out.println("Read Only       : " + con.isReadOnly());
-            System.out.println("═══════════════════════════════\n");
-
-        } catch (ClassNotFoundException e) {
-            // Driver .jar not added to classpath
-            System.out.println("❌ Driver class not found!");
-            System.out.println("   → Make sure mysql-connector-j-x.x.x.jar is in your classpath");
-            System.out.println("   → Error: " + e.getMessage());
-
-        } catch (SQLException e) {
-            // SQL-level connection failure
-            System.out.println("❌ Database connection failed!");
-            System.out.println("   → Message  : " + e.getMessage());
-            System.out.println("   → SQLState  : " + e.getSQLState());
-            System.out.println("   → ErrorCode : " + e.getErrorCode());
-
-        } finally {
-            // ── Step 4: ALWAYS close the connection ───────────────────
-            // Even if an exception was thrown above, this block always runs
-            if (con != null) {
-                try {
-                    con.close();
-                    System.out.println("🔒 Connection closed gracefully.");
-                } catch (SQLException e) {
-                    System.out.println("⚠️ Failed to close connection: " + e.getMessage());
-                }
-            }
+            Class.forName(driver_load);
+            System.out.println("-----Driver Loaded Successfully -----");
         }
-    }
-}
-```
-
-**Expected Output:**
-```
-✅ Driver loaded successfully.
-⏳ Connecting to database...
-✅ Connection established successfully!
-
-════════ DATABASE INFO ════════
-Product Name    : MySQL
-Product Version : 8.0.35
-Driver Name     : MySQL Connector/J
-Driver Version  : mysql-connector-j-8.3.0 (Revision: ...)
-JDBC URL        : jdbc:mysql://localhost:3306/testdb
-Username        : root@localhost
-Auto-commit     : true
-Read Only       : false
-═══════════════════════════════
-
-🔒 Connection closed gracefully.
-```
-
----
-
-## 💻 CRUD Operations — Detailed with Code
-
-### 📖 C1 — READ with `Statement` (SELECT)
-
-```java
-// src/ReadStudents.java
-
-import java.sql.*;
-
-public class ReadStudents {
-
-    public static void main(String[] args) {
-
-        String sql = "SELECT id, name, marks, grade, city FROM students ORDER BY marks DESC";
-
-        // try-with-resources — auto-closes Connection, Statement, ResultSet
-        try (
-            Connection con   = DriverManager.getConnection(DBConfig.URL, DBConfig.USER, DBConfig.PASSWORD);
-            Statement  stmt  = con.createStatement();
-            ResultSet  rs    = stmt.executeQuery(sql)
-        ) {
-            System.out.println("╔════╦══════════════════╦═══════╦═══════╦══════════╗");
-            System.out.println("║ ID ║ Name             ║ Marks ║ Grade ║ City     ║");
-            System.out.println("╠════╬══════════════════╬═══════╬═══════╬══════════╣");
-
-            int rowCount = 0;
-
-            while (rs.next()) {
-                rowCount++;
-                System.out.printf("║ %-2d ║ %-16s ║  %-4d ║   %-3s ║ %-8s ║%n",
-                    rs.getInt("id"),
-                    rs.getString("name"),
-                    rs.getInt("marks"),
-                    rs.getString("grade"),
-                    rs.getString("city")
-                );
-            }
-
-            System.out.println("╚════╩══════════════════╩═══════╩═══════╩══════════╝");
-            System.out.println("Total rows fetched: " + rowCount);
-
-        } catch (SQLException e) {
-            System.out.println("❌ Error reading data: " + e.getMessage());
-        }
-        // Connection, Statement, ResultSet are all automatically closed here ✅
-    }
-}
-```
-
----
-
-### 🔍 C2 — READ with Filter using `PreparedStatement`
-
-```java
-// src/SearchByGrade.java
-
-import java.sql.*;
-import java.util.Scanner;
-
-public class SearchByGrade {
-
-    public static void main(String[] args) {
-
-        Scanner sc = new Scanner(System.in);
-        System.out.print("Enter grade to search (A / B / C): ");
-        String inputGrade = sc.next().toUpperCase();
-
-        String sql = "SELECT * FROM students WHERE grade = ? ORDER BY name";
-
-        try (
-            Connection       con = DriverManager.getConnection(DBConfig.URL, DBConfig.USER, DBConfig.PASSWORD);
-            PreparedStatement ps = con.prepareStatement(sql)
-        ) {
-            ps.setString(1, inputGrade);   // Safe! Input is parameterized
-            ResultSet rs = ps.executeQuery();
-
-            System.out.println("\nStudents with Grade: " + inputGrade);
-            System.out.println("─".repeat(40));
-
-            boolean found = false;
-            while (rs.next()) {
-                found = true;
-                System.out.printf("ID: %d | Name: %-16s | Marks: %d | City: %s%n",
-                    rs.getInt("id"),
-                    rs.getString("name"),
-                    rs.getInt("marks"),
-                    rs.getString("city")
-                );
-            }
-
-            if (!found) {
-                System.out.println("No students found with grade: " + inputGrade);
-            }
-
-            rs.close();
-
-        } catch (SQLException e) {
-            System.out.println("❌ Error: " + e.getMessage());
-        }
-    }
-}
-```
-
----
-
-### ➕ C3 — INSERT a New Student with `PreparedStatement`
-
-```java
-// src/InsertStudent.java
-
-import java.sql.*;
-
-public class InsertStudent {
-
-    // Reusable insert method — returns the generated auto-increment ID
-    public static int insertStudent(Connection con, String name, int marks, String grade, String city)
-            throws SQLException {
-
-        String sql = "INSERT INTO students (name, marks, grade, city) VALUES (?, ?, ?, ?)";
-
-        // RETURN_GENERATED_KEYS tells JDBC to give us back the auto-generated id
-        PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-
-        ps.setString(1, name);
-        ps.setInt(2, marks);
-        ps.setString(3, grade);
-        ps.setString(4, city);
-
-        int affectedRows = ps.executeUpdate();
-
-        if (affectedRows == 0) {
-            throw new SQLException("Insert failed — no rows affected.");
+        catch (ClassNotFoundException e) {
+            // Thrown if the .jar is not added to the classpath
+            System.out.println("-----Driver Load Issue -----");
         }
 
-        // Retrieve the auto-generated key
-        int generatedId = -1;
-        ResultSet generatedKeys = ps.getGeneratedKeys();
-        if (generatedKeys.next()) {
-            generatedId = generatedKeys.getInt(1);
-        }
-        generatedKeys.close();
-        ps.close();
+        // ── Step 2: Define Connection Parameters ──────────────────────────────
+        // URL format → jdbc:mariadb://<host>:<port>/<database_name>
+        // "jdbc"     = JDBC protocol prefix
+        // "mariadb"  = tells DriverManager to use the MariaDB driver
+        // "localhost" = DB server is on the same machine
+        // "3306"     = default port for MariaDB
+        // "jdbc"     = the database name created in MariaDB
+        String url      = "jdbc:mariadb://localhost:3306/jdbc";
+        String user     = "devuser";    // MariaDB username
+        String password = "devuser";    // MariaDB password
+        String query    = "select * from student";   // SQL to execute
 
-        return generatedId;
-    }
-
-    public static void main(String[] args) {
-
-        try (Connection con = DriverManager.getConnection(DBConfig.URL, DBConfig.USER, DBConfig.PASSWORD)) {
-
-            // Insert one student
-            int id1 = insertStudent(con, "Sneha Kulkarni", 92, "A", "Kolhapur");
-            System.out.println("✅ Inserted: Sneha Kulkarni  → Assigned ID: " + id1);
-
-            int id2 = insertStudent(con, "Arjun Mehta", 76, "C", "Aurangabad");
-            System.out.println("✅ Inserted: Arjun Mehta     → Assigned ID: " + id2);
-
-            System.out.println("\nAll students now in DB:");
-            // Show updated table
-            Statement stmt = con.createStatement();
-            ResultSet rs = stmt.executeQuery("SELECT id, name, marks FROM students ORDER BY id");
-            while (rs.next()) {
-                System.out.printf("  ID %d: %-20s → %d marks%n",
-                    rs.getInt("id"), rs.getString("name"), rs.getInt("marks"));
-            }
-            rs.close();
-            stmt.close();
-
-        } catch (SQLException e) {
-            System.out.println("❌ Insert error: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-}
-```
-
----
-
-### ✏️ C4 — UPDATE Records
-
-```java
-// src/UpdateStudent.java
-
-import java.sql.*;
-
-public class UpdateStudent {
-
-    public static void main(String[] args) {
-
-        // ── Example 1: Update marks for a specific student ───────────
-        String updateMarksSql = "UPDATE students SET marks = ?, grade = ? WHERE id = ?";
-
-        // ── Example 2: Bulk update — increase all marks by 2 ─────────
-        String bulkUpdateSql = "UPDATE students SET marks = marks + 2 WHERE marks < 100";
-
-        try (Connection con = DriverManager.getConnection(DBConfig.URL, DBConfig.USER, DBConfig.PASSWORD)) {
-
-            // ── Update single student ─────────────────────────────────
-            PreparedStatement ps = con.prepareStatement(updateMarksSql);
-            ps.setInt(1, 99);        // New marks
-            ps.setString(2, "A");   // New grade
-            ps.setInt(3, 4);        // WHERE id = 4 (Anjali Patil)
-            int updated = ps.executeUpdate();
-            System.out.println("✅ Single update — rows affected: " + updated);
-            ps.close();
-
-            // ── Verify the update ─────────────────────────────────────
-            PreparedStatement verify = con.prepareStatement(
-                "SELECT id, name, marks, grade FROM students WHERE id = ?"
-            );
-            verify.setInt(1, 4);
-            ResultSet rs = verify.executeQuery();
-            if (rs.next()) {
-                System.out.printf("   Updated record → ID: %d | Name: %s | Marks: %d | Grade: %s%n",
-                    rs.getInt("id"), rs.getString("name"),
-                    rs.getInt("marks"), rs.getString("grade"));
-            }
-            rs.close();
-            verify.close();
-
-            // ── Bulk update all students ──────────────────────────────
-            Statement bulkStmt = con.createStatement();
-            int bulkUpdated = bulkStmt.executeUpdate(bulkUpdateSql);
-            System.out.println("\n✅ Bulk update — rows affected: " + bulkUpdated);
-            bulkStmt.close();
-
-        } catch (SQLException e) {
-            System.out.println("❌ Update error: " + e.getMessage());
-        }
-    }
-}
-```
-
----
-
-### ❌ C5 — DELETE Records
-
-```java
-// src/DeleteStudent.java
-
-import java.sql.*;
-
-public class DeleteStudent {
-
-    public static void main(String[] args) {
-
-        try (Connection con = DriverManager.getConnection(DBConfig.URL, DBConfig.USER, DBConfig.PASSWORD)) {
-
-            // ── Check student exists before deleting ──────────────────
-            int deleteId = 6; // ID of student to delete
-            PreparedStatement checkPs = con.prepareStatement(
-                "SELECT name FROM students WHERE id = ?"
-            );
-            checkPs.setInt(1, deleteId);
-            ResultSet checkRs = checkPs.executeQuery();
-
-            if (!checkRs.next()) {
-                System.out.println("⚠️ No student found with ID: " + deleteId);
-                checkRs.close();
-                checkPs.close();
-                return;
-            }
-
-            String studentName = checkRs.getString("name");
-            checkRs.close();
-            checkPs.close();
-
-            // ── Confirm and delete ────────────────────────────────────
-            PreparedStatement deletePs = con.prepareStatement(
-                "DELETE FROM students WHERE id = ?"
-            );
-            deletePs.setInt(1, deleteId);
-            int deleted = deletePs.executeUpdate();
-            deletePs.close();
-
-            if (deleted > 0) {
-                System.out.println("✅ Successfully deleted: " + studentName + " (ID: " + deleteId + ")");
-            }
-
-            // ── Delete by condition ───────────────────────────────────
-            PreparedStatement condDelete = con.prepareStatement(
-                "DELETE FROM students WHERE grade = ? AND marks < ?"
-            );
-            condDelete.setString(1, "C");
-            condDelete.setInt(2, 70);
-            int condDeleted = condDelete.executeUpdate();
-            System.out.println("✅ Deleted " + condDeleted + " student(s) with grade C and marks below 70");
-            condDelete.close();
-
-        } catch (SQLException e) {
-            System.out.println("❌ Delete error: " + e.getMessage());
-        }
-    }
-}
-```
-
----
-
-### ⚡ C6 — Batch Operations (Insert Multiple Rows Fast)
-
-Batch processing lets you **group multiple SQL statements** and send them to the database in **one network round-trip** — dramatically faster than executing them one by one.
-
-```java
-// src/BatchInsert.java
-
-import java.sql.*;
-
-public class BatchInsert {
-
-    public static void main(String[] args) {
-
-        // Sample data to insert in batch
-        String[][] newStudents = {
-            {"Kavya Joshi",    "88", "B", "Pune"},
-            {"Nikhil Bane",    "72", "C", "Latur"},
-            {"Shruti Pawar",   "96", "A", "Pune"},
-            {"Omkar Jadhav",   "81", "B", "Solapur"},
-            {"Tanvi Kulkarni", "93", "A", "Nashik"},
-        };
-
-        String sql = "INSERT INTO students (name, marks, grade, city) VALUES (?, ?, ?, ?)";
-
-        try (Connection con = DriverManager.getConnection(DBConfig.URL, DBConfig.USER, DBConfig.PASSWORD)) {
-
-            con.setAutoCommit(false); // ← Disable auto-commit for batching
-
-            PreparedStatement ps = con.prepareStatement(sql);
-
-            for (String[] student : newStudents) {
-                ps.setString(1, student[0]);
-                ps.setInt(2, Integer.parseInt(student[1]));
-                ps.setString(3, student[2]);
-                ps.setString(4, student[3]);
-                ps.addBatch(); // ← Add to batch instead of executing
-            }
-
-            long startTime = System.currentTimeMillis();
-            int[] results = ps.executeBatch(); // ← Execute ALL at once
-            con.commit(); // ← Commit the transaction
-            long endTime = System.currentTimeMillis();
-
-            System.out.println("✅ Batch insert completed!");
-            System.out.println("   Rows inserted : " + results.length);
-            System.out.println("   Time taken    : " + (endTime - startTime) + " ms");
-
-            ps.close();
-
-        } catch (SQLException e) {
-            System.out.println("❌ Batch insert error: " + e.getMessage());
-        }
-    }
-}
-```
-
----
-
-## 🔄 Transaction Management
-
-A **transaction** is a sequence of database operations that must be treated as a **single unit**. Either ALL operations succeed (commit), or ALL are undone (rollback).
-
-JDBC supports transactions using:
-- `con.setAutoCommit(false)` — disables auto-commit (every statement is now part of a transaction)
-- `con.commit()` — saves all changes permanently
-- `con.rollback()` — undoes all changes since the last commit
-- `con.setSavepoint("name")` — creates a partial rollback point
-
-```java
-// src/TransactionDemo.java
-
-import java.sql.*;
-
-public class TransactionDemo {
-
-    public static void main(String[] args) {
-
-        Connection con = null;
-        Savepoint savepoint = null;
-
+        // ── Step 3: Connect, Query and Read Results ────────────────────────────
         try {
-            con = DriverManager.getConnection(DBConfig.URL, DBConfig.USER, DBConfig.PASSWORD);
-            con.setAutoCommit(false); // ← Start manual transaction mode
-            System.out.println("🔄 Transaction started...");
+            // DriverManager uses the URL to find the right registered driver
+            // and opens a live TCP connection to MariaDB on port 3306
+            Connection conn = DriverManager.getConnection(url, user, password);
+            System.out.println("------Connection Successful -------");
 
-            Statement stmt = con.createStatement();
+            // Statement is used to send static SQL queries to the database
+            Statement stmt = conn.createStatement();
 
-            // ── Operation 1: Update Gopal's marks ─────────────────────
-            stmt.executeUpdate("UPDATE students SET marks = marks + 5 WHERE id = 1");
-            System.out.println("✅ Operation 1: Gopal's marks updated.");
+            // executeQuery() sends the SELECT to MariaDB and returns a ResultSet
+            // ResultSet holds all matching rows in memory, with a cursor before row 1
+            ResultSet rs = stmt.executeQuery(query);
 
-            // ── Create a Savepoint after op 1 ─────────────────────────
-            savepoint = con.setSavepoint("AfterGopalUpdate");
-            System.out.println("📍 Savepoint created: AfterGopalUpdate");
+            // rs.next() moves the cursor forward one row and returns true if a row exists
+            // Loop runs once per row until no more rows remain
+            while (rs.next()) {
+                // Read the "id" column of the current row as an int
+                int id = rs.getInt("id");
 
-            // ── Operation 2: Update Rahul's marks ─────────────────────
-            stmt.executeUpdate("UPDATE students SET marks = marks - 3 WHERE id = 2");
-            System.out.println("✅ Operation 2: Rahul's marks updated.");
+                // Read the "name" column of the current row as a String
+                String name = rs.getString("name");
 
-            // ── Operation 3: Intentionally cause an error ──────────────
-            // Uncomment next line to simulate a failure:
-            // stmt.executeUpdate("UPDATE non_existent_table SET x = 1");
-
-            // ── Commit ALL operations ──────────────────────────────────
-            con.commit();
-            System.out.println("✅ Transaction committed — all changes saved permanently!");
-
-        } catch (SQLException e) {
-            System.out.println("❌ Error during transaction: " + e.getMessage());
-
-            try {
-                if (savepoint != null) {
-                    // ── Partial rollback — undo only after savepoint ───
-                    con.rollback(savepoint);
-                    con.commit(); // Commit what was before the savepoint
-                    System.out.println("⚠️ Partial rollback to savepoint 'AfterGopalUpdate'.");
-                    System.out.println("   → Op 1 (Gopal) kept. Op 2 (Rahul) rolled back.");
-                } else {
-                    // ── Full rollback — undo everything ───────────────
-                    con.rollback();
-                    System.out.println("❌ Full rollback — all changes undone.");
-                }
-            } catch (SQLException rollbackEx) {
-                System.out.println("❌ Rollback also failed: " + rollbackEx.getMessage());
+                System.out.print(id + "  ");
+                System.out.print(name);
+                System.out.println();
             }
-
-        } finally {
-            try {
-                if (con != null) {
-                    con.setAutoCommit(true); // Restore default behavior
-                    con.close();
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+        }
+        catch (Exception e) {
+            // Catches SQLException and any other runtime exception
+            System.out.println("------Something gets Wrong -----");
         }
     }
 }
 ```
 
----
+### 📤 Expected Output
 
-## 📜 ResultSet Types & Scrollability
-
-By default, `ResultSet` is **forward-only** — you can only call `rs.next()` and move forward. But JDBC supports **scrollable and updatable** ResultSets.
-
-### ResultSet Types
-
-| Constant | Description |
-|----------|-------------|
-| `TYPE_FORWARD_ONLY` | Default. Can only move forward with `next()` |
-| `TYPE_SCROLL_INSENSITIVE` | Can scroll in any direction. Does NOT see DB changes made after the ResultSet was created |
-| `TYPE_SCROLL_SENSITIVE` | Can scroll in any direction. DOES see DB changes in real-time |
-
-### ResultSet Concurrency
-
-| Constant | Description |
-|----------|-------------|
-| `CONCUR_READ_ONLY` | Default. Cannot modify data through the ResultSet |
-| `CONCUR_UPDATABLE` | Can use ResultSet methods to update rows directly |
-
-```java
-// Create a scrollable, read-only ResultSet
-Statement stmt = con.createStatement(
-    ResultSet.TYPE_SCROLL_INSENSITIVE,
-    ResultSet.CONCUR_READ_ONLY
-);
-
-ResultSet rs = stmt.executeQuery("SELECT * FROM students");
-
-// Move to last row to get total count
-rs.last();
-int totalRows = rs.getRow();
-System.out.println("Total students: " + totalRows);
-
-// Move back to first row
-rs.first();
-System.out.println("First student: " + rs.getString("name"));
-
-// Jump to a specific row (row 3)
-rs.absolute(3);
-System.out.println("Third student: " + rs.getString("name"));
-
-// Move backward
-rs.previous();
-System.out.println("Second student: " + rs.getString("name"));
-
-// Back to start, iterate normally
-rs.beforeFirst();
-while (rs.next()) {
-    System.out.println(rs.getString("name"));
-}
-
-rs.close();
-stmt.close();
+```
+-----Driver Loaded Successfully -----
+------Connection Successful -------
+1  Gopal Tayade
+2  Rahul Sharma
+3  Priya Desai
 ```
 
----
+### 🔍 Code Flow Summary
 
-## 📊 JDBC vs Hibernate — When to Use What
-
-| Feature | JDBC | Hibernate (ORM) |
-|---------|------|-----------------|
-| **Abstraction** | Low — you write raw SQL | High — works with Java objects |
-| **Learning Curve** | Low | Higher |
-| **Performance** | Maximum — full control | Slightly lower (overhead from ORM mapping) |
-| **Boilerplate Code** | High (lots of `try-catch`, `close()`) | Low (framework handles it) |
-| **Database Portability** | Medium — may need SQL tweaks per DB | High — Hibernate generates DB-specific SQL |
-| **Complex Queries** | ✅ Great — raw SQL is powerful | ⚠️ Complex joins can be tricky |
-| **Best For** | Small projects, learning, performance-critical apps | Large enterprise apps, rapid development |
-
-> 🎯 **Learn JDBC first.** Hibernate and Spring Data JPA are built on top of JDBC. Understanding JDBC makes you a much stronger developer.
+```
+START
+  │
+  ├─► Class.forName("org.mariadb.jdbc.Driver")
+  │         └─► MariaDB driver registers itself with DriverManager
+  │
+  ├─► DriverManager.getConnection(url, user, password)
+  │         └─► Opens TCP connection to MariaDB on localhost:3306
+  │         └─► Authenticates with devuser / devuser
+  │         └─► Returns a live Connection object
+  │
+  ├─► conn.createStatement()
+  │         └─► Creates a Statement to send SQL
+  │
+  ├─► stmt.executeQuery("select * from student")
+  │         └─► Sends SQL to MariaDB
+  │         └─► Returns a ResultSet with all rows
+  │
+  └─► while(rs.next())
+            └─► Reads id and name column from each row
+            └─► Prints them to console
+END
+```
 
 ---
 
@@ -1652,26 +852,15 @@ stmt.close();
 ```
 JDBC--java_database_connection-/
 │
-├── 📁 .idea/                         ← IntelliJ IDEA project config (auto-generated)
-│   ├── misc.xml
-│   ├── modules.xml
-│   └── workspace.xml
+├── 📁 .idea/                          ← IntelliJ IDEA project config (auto-generated)
 │
 ├── 📁 lib/
-│   └── 📄 mysql-connector-j-8.3.0.jar   ← Type 4 JDBC Driver
+│   └── 📄 mariadb-java-client-3.x.x.jar   ← Type 4 MariaDB JDBC Driver
 │
 ├── 📁 src/
-│   ├── 📄 DBConfig.java              ← DB credentials & URL config
-│   ├── 📄 DBConnection.java          ← Connection + metadata demo
-│   ├── 📄 ReadStudents.java          ← SELECT + ResultSet traversal
-│   ├── 📄 SearchByGrade.java         ← Parameterized SELECT query
-│   ├── 📄 InsertStudent.java         ← INSERT with generated keys
-│   ├── 📄 UpdateStudent.java         ← Single & bulk UPDATE
-│   ├── 📄 DeleteStudent.java         ← Conditional DELETE
-│   ├── 📄 BatchInsert.java           ← Batch INSERT for performance
-│   └── 📄 TransactionDemo.java       ← Commit, Rollback & Savepoints
+│   └── 📄 Main.java                   ← MariaDB connection + data fetch demo
 │
-├── 📄 db_conn.iml                    ← IntelliJ module file
+├── 📄 db_conn.iml                     ← IntelliJ module file
 └── 📄 .gitignore
 ```
 
@@ -1679,27 +868,17 @@ JDBC--java_database_connection-/
 
 ## ⚠️ Common Errors & Fixes
 
-| # | ❌ Error Message | 🔍 Root Cause | ✅ Solution |
-|---|----------------|--------------|------------|
-| 1 | `ClassNotFoundException: com.mysql.cj.jdbc.Driver` | `.jar` file not added to project classpath | Add via **File → Project Structure → Dependencies → + JAR** |
-| 2 | `Communications link failure` | MySQL server is not running, or wrong host/port | Start MySQL service; verify `localhost:3306` in URL |
-| 3 | `Access denied for user 'root'@'localhost'` | Wrong username or password in `getConnection()` | Double-check DB credentials |
-| 4 | `Unknown database 'testdb'` | The specified database does not exist | Run `CREATE DATABASE testdb;` in MySQL shell |
-| 5 | `Table 'testdb.students' doesn't exist` | Table was not created | Run the `CREATE TABLE` SQL script provided above |
-| 6 | `Public Key Retrieval is not allowed` | MySQL 8+ auth plugin issue | Add `?allowPublicKeyRetrieval=true` to URL |
-| 7 | `SSL connection warning` | MySQL 8+ requires SSL by default | Add `?useSSL=false` to URL for local dev |
-| 8 | `The server time zone value is unrecognized` | JVM timezone doesn't match server | Add `?serverTimezone=UTC` to URL |
-| 9 | `ResultSet is closed` | Accessing `rs` after `stmt.close()` | Close ResultSet before Statement; or use try-with-resources |
-| 10 | `No suitable driver found for jdbc:mysql://...` | Driver not registered / wrong URL prefix | Ensure `.jar` is in classpath; check URL starts with `jdbc:mysql://` |
+| # | ❌ Error / Output | 🔍 Root Cause | ✅ Solution |
+|---|------------------|--------------|------------|
+| 1 | `-----Driver Load Issue -----` | `.jar` not added to classpath | Add `mariadb-java-client.jar` via **Project Structure → Dependencies** |
+| 2 | `------Something gets Wrong -----` (after driver loads) | MariaDB not running | Start MariaDB: `net start mariadb` or `sudo systemctl start mariadb` |
+| 3 | `------Something gets Wrong -----` | Wrong username or password | Verify `devuser` / `devuser` credentials exist in MariaDB |
+| 4 | `------Something gets Wrong -----` | Database `jdbc` doesn't exist | Run `CREATE DATABASE jdbc;` in MariaDB shell |
+| 5 | `------Something gets Wrong -----` | Table `student` doesn't exist | Run the `CREATE TABLE student` script above |
+| 6 | `------Something gets Wrong -----` | Wrong port or host in URL | Verify MariaDB is on `localhost:3306` |
+| 7 | `ClassNotFoundException` at runtime | Driver class name typo | Ensure it is `org.mariadb.jdbc.Driver` exactly |
 
-**Universal Fix URL for MySQL 8+ (Development):**
-```java
-String URL = "jdbc:mysql://localhost:3306/testdb" +
-             "?useSSL=false" +
-             "&allowPublicKeyRetrieval=true" +
-             "&serverTimezone=UTC" +
-             "&characterEncoding=UTF-8";
-```
+> 💡 **Pro tip:** Replace the generic `catch(Exception e)` with `catch(SQLException e) { e.printStackTrace(); }` during development — this prints the actual error message so you know exactly what went wrong instead of just seeing `"Something gets Wrong"`.
 
 ---
 
@@ -1707,42 +886,34 @@ String URL = "jdbc:mysql://localhost:3306/testdb" +
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  JDBC 6-STEP CONNECTION FLOW
+  JDBC CONNECTION FLOW (as used in this project)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  1. Load Driver     →  Class.forName("com.mysql.cj.jdbc.Driver")
-                        [Optional in JDBC 4.0+]
+  1. Load Driver     →  Class.forName("org.mariadb.jdbc.Driver")
   2. Get Connection  →  DriverManager.getConnection(url, user, pass)
-  3. Create Statement→  con.createStatement()
-                        con.prepareStatement(sql)
-                        con.prepareCall("{call procedure(?)}")
-  4. Execute SQL     →  stmt.executeQuery()     ← SELECT
-                        stmt.executeUpdate()    ← INSERT/UPDATE/DELETE
-                        stmt.executeBatch()     ← Batch operations
-  5. Process Result  →  while(rs.next()) { rs.getString("col"); }
-  6. Close Resources →  rs.close() → stmt.close() → con.close()
+  3. Create Statement→  conn.createStatement()
+  4. Execute Query   →  stmt.executeQuery("select * from student")
+  5. Read Results    →  while(rs.next()) { rs.getInt("id"); rs.getString("name"); }
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  MARIADB CONNECTION URL BREAKDOWN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  jdbc:mariadb://localhost:3306/jdbc
+   ↑      ↑          ↑       ↑    ↑
+  JDBC  driver     server   port  database
+  prefix  type      host         name
 
   STATEMENT TYPES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Statement          → Static SQL, no parameters
-  PreparedStatement  → Parameterized SQL (use ?)  ← PREFER THIS
+  PreparedStatement  → Parameterized SQL using ?  ← Safer
   CallableStatement  → Stored procedures
 
   DRIVER TYPES SUMMARY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Type 1 → JDBC-ODBC Bridge      (Deprecated ⛔)
-  Type 2 → Native API            (Avoid ⚠️)
-  Type 3 → Network Protocol      (Rare ⚠️)
-  Type 4 → Pure Java / Thin      (USE THIS ✅)
-
-  TRANSACTION CONTROL
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  con.setAutoCommit(false)     → Begin manual transaction
-  con.commit()                 → Save changes permanently
-  con.rollback()               → Undo all changes
-  con.setSavepoint("name")     → Partial rollback point
-  con.rollback(savepoint)      → Rollback to specific point
+  Type 2 → Native API            (Avoid      ⚠️)
+  Type 3 → Network Protocol      (Rare       ⚠️)
+  Type 4 → Pure Java / Thin      (USE THIS   ✅)  ← MariaDB Connector/J
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
----
